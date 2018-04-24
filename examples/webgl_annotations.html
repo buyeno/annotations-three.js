@@ -109,12 +109,10 @@
 		var up = new THREE.Vector3( 0, 1, 0 );
 
 		var params = {
-			minScale: 10,
-			maxScale: 20,
-			rotate: true,
+			Annotate: false,
 			clear: function() {
 
-				removeAnnotaions();
+				removeAnnotations();
 
 			}
 		};
@@ -140,6 +138,11 @@
 			var controls = new THREE.OrbitControls( camera, renderer.domElement );
 			controls.minDistance = 50;
 			controls.maxDistance = 200;
+
+			controls.minAzimuthAngle = - Math.PI/2; // radians
+			controls.maxAzimuthAngle = Math.PI/2; // radians
+
+			controls.maxPolarAngle = Math.PI/2;
 
 			scene.add( new THREE.AmbientLight( 0x443333 ) );
 
@@ -221,6 +224,7 @@
 			function checkIntersection() {
 
 				if ( ! mesh ) return;
+				if ( ! params.Annotate) return;
 
 				raycaster.setFromCamera( mouse, camera );
 
@@ -240,10 +244,10 @@
 					intersection.normal.copy( intersects[ 0 ].face.normal );
 					mouseHelper.lookAt( n );
 
-					var positions = line.geometry.attributes.position;
-					positions.setXYZ( 0, p.x, p.y, p.z );
-					positions.setXYZ( 1, n.x, n.y, n.z );
-					positions.needsUpdate = true;
+					// var positions = line.geometry.attributes.position;
+					// positions.setXYZ( 0, p.x, p.y, p.z );
+					// positions.setXYZ( 1, n.x, n.y, n.z );
+					// positions.needsUpdate = true;
 
 					intersection.intersects = true;
 
@@ -257,9 +261,7 @@
 
 			var gui = new dat.GUI();
 
-			gui.add( params, 'minScale', 1, 30 );
-			gui.add( params, 'maxScale', 1, 30 );
-			gui.add( params, 'rotate' );
+			gui.add( params, 'Annotate' );
 			gui.add( params, 'clear' );
 			gui.open();
 
@@ -291,6 +293,7 @@
 		}
 
 		function annotate() {
+			if ( ! params.Annotate ) return;
 
 			// Sprite
 
@@ -305,7 +308,7 @@
 	    });
 
 	    sprite = new THREE.Sprite(spriteMaterial);
-	    sprite.scale.set(10, 10, 1);
+	    sprite.scale.set(5, 5, 1);
 			sprite.position.copy( intersection.point );
 	    scene.add(sprite);
 
@@ -313,9 +316,9 @@
 
 		function removeAnnotations() {
 
-			annotations.forEach( function( d ) {
+			annotations.forEach( function(  ) {
 
-				scene.remove( d );
+				scene.remove(  );
 
 			} );
 
@@ -345,7 +348,7 @@
 		}
 
 		function updateScreenPosition() {
-    var vector = intersection.point;
+    var vector = (5, 5, 1);
     var canvas = renderer.domElement;
 
     vector.project(camera);
