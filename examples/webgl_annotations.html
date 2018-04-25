@@ -54,9 +54,11 @@
 		var container = document.getElementById( 'container' );
 
 		var renderer, scene, camera, stats;
-		var mesh, decal;
+		var mesh, annotations;
 		var raycaster;
 		var line;
+
+
 
 		var intersection = {
 			intersects: false,
@@ -68,29 +70,31 @@
 		// Number
 
 		var canvas = document.getElementById("number");
-		var ctx = canvas.getContext("2d");
+
 		var x = 32;
 		var y = 32;
 		var radius = 30;
 		var startAngle = 0;
 		var endAngle = Math.PI * 2;
+		var idx = 1;
+		var ctx = canvas.getContext("2d");
 
-		ctx.fillStyle = "rgb(0, 0, 0)";
-		ctx.beginPath();
-		ctx.arc(x, y, radius, startAngle, endAngle);
-		ctx.fill();
-
-		ctx.strokeStyle = "rgb(255, 255, 255)";
-		ctx.lineWidth = 3;
-		ctx.beginPath();
-		ctx.arc(x, y, radius, startAngle, endAngle);
-		ctx.stroke();
-
-		ctx.fillStyle = "rgb(255, 255, 255)";
-		ctx.font = "32px sans-serif";
-		ctx.textAlign = "center";
-		ctx.textBaseline = "middle";
-		ctx.fillText("1", x, y);
+		// ctx.fillStyle = "rgb(0, 0, 0)";
+		// ctx.beginPath();
+		// ctx.arc(x, y, radius, startAngle, endAngle);
+		// ctx.fill();
+		//
+		// ctx.strokeStyle = "rgb(255, 255, 255)";
+		// ctx.lineWidth = 3;
+		// ctx.beginPath();
+		// ctx.arc(x, y, radius, startAngle, endAngle);
+		// ctx.stroke();
+		//
+		// ctx.fillStyle = "rgb(255, 255, 255)";
+		// ctx.font = "32px sans-serif";
+		// ctx.textAlign = "center";
+		// ctx.textBaseline = "middle";
+		// // ctx.fillText(idx, x, y);
 
 		// three.js
 
@@ -109,7 +113,7 @@
 		var up = new THREE.Vector3( 0, 1, 0 );
 
 		var params = {
-			Annotate: false,
+			Annotate: true,
 			clear: function() {
 
 				removeAnnotations();
@@ -139,8 +143,8 @@
 			controls.minDistance = 50;
 			controls.maxDistance = 200;
 
-			controls.minAzimuthAngle = - Math.PI/2; // radians
-			controls.maxAzimuthAngle = Math.PI/2; // radians
+			controls.minAzimuthAngle = - Math.PI/2;
+			controls.maxAzimuthAngle = Math.PI/2;
 
 			controls.maxPolarAngle = Math.PI/2;
 
@@ -190,7 +194,7 @@
 
 			window.addEventListener( 'mouseup', function() {
 
-				checkIntersection();
+				checkMeshIntersection();
 				if ( ! moved && intersection.intersects ) annotate();
 
 			} );
@@ -217,11 +221,48 @@
 				mouse.x = ( x / window.innerWidth ) * 2 - 1;
 				mouse.y = - ( y / window.innerHeight ) * 2 + 1;
 
-				checkIntersection();
+				checkMeshIntersection();
+				// checkAnnotationIntersection();
 
 			}
 
-			function checkIntersection() {
+			function checkAnnotationIntersection() {
+
+				if (! annotations ) return;
+				raycaster.setFromCamera( mouse, camera );
+
+				var intersectsA = raycaster.intersectObjects( [ annotations ] );
+
+				if ( intersects.length > 0 ) {
+
+					var p = intersectsA[ 0 ].point;
+					mouseHelper.position.copy( p );
+					intersection.point.copy( p );
+
+					var n = intersectsA[ 0 ].face.normal.clone();
+					n.transformDirection( mesh.matrixWorld );
+					n.multiplyScalar( 10 );
+					n.add( intersects[ 0 ].point );
+
+					intersection.normal.copy( intersectsA[ 0 ].face.normal );
+					mouseHelper.lookAt( n );
+
+					var positions = line.geometry.attributes.position;
+					positions.setXYZ( 0, p.x, p.y, p.z );
+					positions.setXYZ( 1, n.x, n.y, n.z );
+					positions.needsUpdate = true;
+
+					intersection.intersects = true;
+
+				} else {
+
+					intersection.intersects = false;
+
+				}
+
+				}
+
+			function checkMeshIntersection() {
 
 				if ( ! mesh ) return;
 				if ( ! params.Annotate) return;
@@ -296,7 +337,7 @@
 			if ( ! params.Annotate ) return;
 
 			// Sprite
-
+			var ctx = canvas.getContext("2d");
 	    var numberTexture = new THREE.CanvasTexture(document.querySelector("#number"));
 
 	    var spriteMaterial = new THREE.SpriteMaterial({
@@ -310,15 +351,40 @@
 	    sprite = new THREE.Sprite(spriteMaterial);
 	    sprite.scale.set(5, 5, 1);
 			sprite.position.copy( intersection.point );
+
+			ctx.clearRect(0,0,64,64)
+
+
+			ctx.fillStyle = "rgb(0, 0, 0)";
+			ctx.beginPath();
+			ctx.arc(x, y, radius, startAngle, endAngle);
+			ctx.fill();
+
+			ctx.strokeStyle = "rgb(255, 255, 255)";
+			ctx.lineWidth = 3;
+			ctx.beginPath();
+			ctx.arc(x, y, radius, startAngle, endAngle);
+			ctx.stroke();
+
+			ctx.fillStyle = "rgb(255, 255, 255)";
+			ctx.font = "32px sans-serif";
+			ctx.textAlign = "center";
+			ctx.textBaseline = "middle";
+			ctx.fillText(idx, x, y);
+
+			annotations.push(sprite);
 	    scene.add(sprite);
+
+			idx ++;
+
 
 		}
 
 		function removeAnnotations() {
 
-			annotations.forEach( function(  ) {
+			annotations.forEach( function( d ) {
 
-				scene.remove(  );
+				scene.remove( d );
 
 			} );
 
@@ -348,7 +414,8 @@
 		}
 
 		function updateScreenPosition() {
-    var vector = (5, 5, 1);
+			if (intersection.intersects)
+    var vector = (intersection.point);
     var canvas = renderer.domElement;
 
     vector.project(camera);
