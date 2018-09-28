@@ -51,7 +51,7 @@
 		<script>
 
 
-// set up variables
+		// set up variables
 		var container = document.getElementById( 'container' );
 
 		var renderer, scene, camera, stats;
@@ -80,14 +80,9 @@
 		var idx = 1;
 		var ctx = canvas.getContext("2d");
 
-		// three.js
-
 		var sprite = void 0;
 		var mesh = void 0;
 		var annotation = document.querySelector(".annotation");
-
-
-    //load decal image
 
 		var textureLoader = new THREE.TextureLoader();
 		var annotations = [];
@@ -98,6 +93,7 @@
 
 		var params = {
 			Annotate: true,
+			Hide: false,
 			clear: function() {
 
 				removeAnnotations();
@@ -285,6 +281,7 @@
 			var gui = new dat.GUI();
 
 			gui.add( params, 'Annotate' );
+			gui.add( params, 'Hide');
 			gui.add( params, 'clear' );
 			gui.open();
 
@@ -360,7 +357,6 @@
 
 			idx ++;
 
-
 		}
 
 		function removeAnnotations() {
@@ -374,6 +370,16 @@
 			annotations = [];
 			idx=1;
 
+		}
+
+		function hideAnnotations() {
+			if ( ! params.Hide) return;
+
+			annotations.forEach( function() {
+
+				sprite.material.opacity = 0;
+
+			} );
 		}
 
 		function onWindowResize() {
@@ -393,13 +399,27 @@
 
 			stats.update();
 
-	 		updateScreenPosition();
+			annotations.forEach(updateAnnotationOpacity);
+
+			 hideAnnotations();
+
+	 		// updateScreenPosition();
 
 		}
 
+		function updateAnnotationOpacity() {
+			const meshDistance = camera.position.distanceTo(mesh.position);
+			const spriteDistance = camera.position.distanceTo(sprite.position);
+			spriteBehindObject = spriteDistance > meshDistance;
+
+			sprite.material.opacity = spriteBehindObject ? 0.25 : 1;
+			annotation.style.opacity = spriteBehindObject ? 0.25 : 1;
+		}
+
 		function updateScreenPosition() {
-			if (intersection.intersects)
-	    var vector = (intersection.point);
+
+			var lastpos = annotations[annotations.length - 1];
+	    var vector = lastpos.position;
 	    var canvas = renderer.domElement;
 
 	    vector.project(camera);
