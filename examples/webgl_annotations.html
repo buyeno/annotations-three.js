@@ -37,13 +37,14 @@
 
 		<script src="../build/three.js"></script>
 		<script src="js/controls/OrbitControls.js"></script>
+		<script src="js/loaders/GLTFLoader.js"></script>
 		<script src="js/libs/stats.min.js"></script>
 		<script src="js/libs/dat.gui.min.js"></script>
     <script src="js/geometries/DecalGeometry.js"></script>
 
 		<div class="annotation">
-		    <p><strong>Cube</strong></p>
-		    <p>In geometry, a cube is a three-dimensional solid object bounded by six square faces, facets or sides, with three meeting at each vertex.</p>
+		    <p><strong>Annotation</strong></p>
+		    <p>Test Annotation, a cube is a three-dimensional solid object bounded by six square faces, facets or sides, with three meeting at each vertex.</p>
 		</div>
 		<canvas id="number" width="64" height="64"></canvas>
 
@@ -65,9 +66,9 @@
 			point: new THREE.Vector3(),
 			normal: new THREE.Vector3()
 		};
-		var mouse = new THREE.Vector2();1
+		var mouse = new THREE.Vector2();
 
-		// Number
+		// Number definition
 
 		var canvas = document.getElementById("number");
 
@@ -78,23 +79,6 @@
 		var endAngle = Math.PI * 2;
 		var idx = 1;
 		var ctx = canvas.getContext("2d");
-
-		// ctx.fillStyle = "rgb(0, 0, 0)";
-		// ctx.beginPath();
-		// ctx.arc(x, y, radius, startAngle, endAngle);
-		// ctx.fill();
-		//
-		// ctx.strokeStyle = "rgb(255, 255, 255)";
-		// ctx.lineWidth = 3;
-		// ctx.beginPath();
-		// ctx.arc(x, y, radius, startAngle, endAngle);
-		// ctx.stroke();
-		//
-		// ctx.fillStyle = "rgb(255, 255, 255)";
-		// ctx.font = "32px sans-serif";
-		// ctx.textAlign = "center";
-		// ctx.textBaseline = "middle";
-		// // ctx.fillText(idx, x, y);
 
 		// three.js
 
@@ -177,9 +161,6 @@
 			var moved = false;
 
 
-
-
-
 			controls.addEventListener( 'change', function() {
 
 				moved = true;
@@ -225,7 +206,7 @@
 				// checkAnnotationIntersection();
 
 			}
-
+			//check for mouse/touch intersection with annotation number
 			function checkAnnotationIntersection() {
 
 				if (! annotations ) return;
@@ -261,7 +242,7 @@
 				}
 
 				}
-
+				//check for mouse/touch intersection with mesh
 			function checkMeshIntersection() {
 
 				if ( ! mesh ) return;
@@ -300,6 +281,7 @@
 
 			}
 
+			//gui list
 			var gui = new dat.GUI();
 
 			gui.add( params, 'Annotate' );
@@ -310,22 +292,22 @@
 			animate();
 
 		}
-
+		//load model
 		function loadLeePerrySmith( callback ) {
 
-			var loader = new THREE.JSONLoader();
+			var loader = new THREE.GLTFLoader();
 
-			loader.load( 'models/json/leeperrysmith/LeePerrySmith.json', function( geometry ) {
+			loader.load( 'models/gltf/LeePerrySmith/LeePerrySmith.glb', function( gltf ) {
 
+				mesh = gltf.scene.children[ 0 ];
 				var material = new THREE.MeshPhongMaterial( {
 					specular: 0x111111,
-					map: textureLoader.load( 'models/json/leeperrysmith/Map-COL.jpg' ),
-					specularMap: textureLoader.load( 'models/json/leeperrysmith/Map-SPEC.jpg' ),
-					normalMap: textureLoader.load( 'models/json/leeperrysmith/Infinite-Level_02_Tangent_SmoothUV.jpg' ),
+					map: textureLoader.load( 'models/gltf/LeePerrySmith/Map-COL.jpg' ),
+					specularMap: textureLoader.load( 'models/gltf/LeePerrySmith/Map-SPEC.jpg' ),
+					normalMap: textureLoader.load( 'models/gltf/LeePerrySmith/Infinite-Level_02_Tangent_SmoothUV.jpg' ),
 					shininess: 25
 				} );
 
-				mesh = new THREE.Mesh( geometry, material );
 				scene.add( mesh );
 				mesh.scale.set( 10, 10, 10 );
 
@@ -333,6 +315,7 @@
 
 		}
 
+		//add annotation number
 		function annotate() {
 			if ( ! params.Annotate ) return;
 
@@ -389,6 +372,7 @@
 			} );
 
 			annotations = [];
+			idx=1;
 
 		}
 
@@ -415,17 +399,17 @@
 
 		function updateScreenPosition() {
 			if (intersection.intersects)
-    var vector = (intersection.point);
-    var canvas = renderer.domElement;
+	    var vector = (intersection.point);
+	    var canvas = renderer.domElement;
 
-    vector.project(camera);
+	    vector.project(camera);
 
-    vector.x = Math.round((0.5 + vector.x / 2) * (canvas.width / window.devicePixelRatio));
-    vector.y = Math.round((0.5 - vector.y / 2) * (canvas.height / window.devicePixelRatio));
+	    vector.x = Math.round((0.5 + vector.x / 2) * (canvas.width / window.devicePixelRatio));
+	    vector.y = Math.round((0.5 - vector.y / 2) * (canvas.height / window.devicePixelRatio));
 
-    annotation.style.top = vector.y + "px";
-    annotation.style.left = vector.x + "px";
-}
+	    annotation.style.top = vector.y + "px";
+	    annotation.style.left = vector.x + "px";
+		}
 
 
 		</script>
