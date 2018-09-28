@@ -43,8 +43,7 @@
     <script src="js/geometries/DecalGeometry.js"></script>
 
 		<div class="annotation">
-		    <p><strong>Annotation</strong></p>
-		    <p>Test Annotation, a cube is a three-dimensional solid object bounded by six square faces, facets or sides, with three meeting at each vertex.</p>
+		    <p id="annotation-text"></p>
 		</div>
 		<canvas id="number" width="64" height="64"></canvas>
 
@@ -94,6 +93,7 @@
 		var params = {
 			Annotate: true,
 			Hide: false,
+			Text: 'Test Annotation',
 			clear: function() {
 
 				removeAnnotations();
@@ -279,9 +279,9 @@
 
 			//gui list
 			var gui = new dat.GUI();
-
 			gui.add( params, 'Annotate' );
-			gui.add( params, 'Hide');
+			gui.add( params, 'Text' );
+			gui.add( params, 'Hide' );
 			gui.add( params, 'clear' );
 			gui.open();
 
@@ -401,10 +401,16 @@
 
 			annotations.forEach(updateAnnotationOpacity);
 
-			 hideAnnotations();
+			hideAnnotations();
+
+			updateAnnotationText();
 
 	 		// updateScreenPosition();
 
+		}
+
+		function updateAnnotationText() {
+			document.getElementById('annotation-text').innerHTML = params.Text;
 		}
 
 		function updateAnnotationOpacity() {
