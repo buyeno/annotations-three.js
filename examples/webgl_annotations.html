@@ -24,6 +24,15 @@
 				font-size:13px;
 				text-align:center;
 			}
+			#annotation {
+				position: absolute;
+				top: 40px;
+				color: #ffffff;
+				padding: 5px;
+				font-family:Monospace;
+				font-size:10px;
+				text-align:center;
+			}
 
 			a {
 				color: #ffffff;
@@ -42,7 +51,7 @@
 		<script src="js/libs/dat.gui.min.js"></script>
     <script src="js/geometries/DecalGeometry.js"></script>
 
-		<div class="annotation">
+		<div id="annotation">
 		    <p id="annotation-text"></p>
 		</div>
 		<canvas id="number" width="64" height="64"></canvas>
@@ -54,7 +63,7 @@
 		var container = document.getElementById( 'container' );
 
 		var renderer, scene, camera, stats;
-		var mesh, annotations;
+		var mesh, annotations, decals;
 		var raycaster;
 		var line;
 
@@ -67,8 +76,28 @@
 		};
 		var mouse = new THREE.Vector2();
 
-		// Number definition
+		//Decal definition
+		var textureLoader = new THREE.TextureLoader();
+		var decalDiffuse = textureLoader.load( 'textures/decal/decal-diffuse.png' );
+		var decalNormal = textureLoader.load( 'textures/decal/decal-normal.jpg' );
 
+		var decalMaterial = new THREE.MeshPhongMaterial( {
+			specular: 0x444444,
+			map: decalDiffuse,
+			normalMap: decalNormal,
+			normalScale: new THREE.Vector2( 1, 1 ),
+			shininess: 30,
+			transparent: true,
+			depthTest: true,
+			depthWrite: false,
+			polygonOffset: true,
+			polygonOffsetFactor: - 4,
+			wireframe: false
+		} );
+
+		var decals = [];
+
+		// Number definition
 		var canvas = document.getElementById("number");
 
 		var x = 32;
@@ -87,17 +116,18 @@
 		var annotations = [];
 		var mouseHelper;
 		var position = new THREE.Vector3();
+		var orientation = new THREE.Euler();
 		var size = new THREE.Vector3( 10, 10, 10 );
 		var up = new THREE.Vector3( 0, 1, 0 );
 
 		var params = {
 			Annotate: true,
+			Decal: false,
 			Hide: false,
 			Text: 'Test Annotation',
 			clear: function() {
-
 				removeAnnotations();
-
+				removeDecals();
 			}
 		};
 
@@ -141,8 +171,8 @@
 			var geometry = new THREE.BufferGeometry();
 			geometry.setFromPoints( [ new THREE.Vector3(), new THREE.Vector3() ] );
 
-			line = new THREE.Line( geometry, new THREE.LineBasicMaterial( { linewidth: 4 } ) );
-			scene.add( line );
+			// line = new THREE.Line( geometry, new THREE.LineBasicMaterial( { linewidth: 4 } ) );
+			// scene.add( line );
 
 			loadLeePerrySmith();
 
@@ -172,7 +202,7 @@
 			window.addEventListener( 'mouseup', function() {
 
 				checkMeshIntersection();
-				if ( ! moved && intersection.intersects ) annotate();
+				if ( ! moved && intersection.intersects ) annotate(); shoot();
 
 			} );
 
@@ -205,7 +235,7 @@
 			//check for mouse/touch intersection with annotation number
 			function checkAnnotationIntersection() {
 
-				if (! annotations ) return;
+				if (! annotations) return;
 				raycaster.setFromCamera( mouse, camera );
 
 				var intersectsA = raycaster.intersectObjects( [ annotations ] );
@@ -242,7 +272,7 @@
 			function checkMeshIntersection() {
 
 				if ( ! mesh ) return;
-				if ( ! params.Annotate) return;
+				if ( ! params.Annotate && ! params.Decal) return;
 
 				raycaster.setFromCamera( mouse, camera );
 
@@ -280,6 +310,7 @@
 			//gui list
 			var gui = new dat.GUI();
 			gui.add( params, 'Annotate' );
+			gui.add( params, 'Decal')
 			gui.add( params, 'Text' );
 			gui.add( params, 'Hide' );
 			gui.add( params, 'clear' );
@@ -358,6 +389,39 @@
 			idx ++;
 
 		}
+		// add decal
+		function shoot() {
+			if ( ! params.Decal ) return;
+
+			position.copy( intersection.point );
+			orientation.copy( mouseHelper.rotation );
+
+			// if ( params.rotate ) orientation.z = Math.random() * 2 * Math.PI;
+			//
+			// var scale = params.minScale + Math.random() * ( params.maxScale - params.minScale );
+			size.set( 5, 5, 5 );
+
+			var material = decalMaterial.clone();
+			material.color.setHex( Math.random() * 0xffffff );
+
+			var m = new THREE.Mesh( new THREE.DecalGeometry( mesh, position, orientation, size ), material );
+
+			decals.push( m );
+			scene.add( m );
+
+		}
+
+		function removeDecals() {
+
+			decals.forEach( function( d ) {
+
+				scene.remove( d );
+
+			} );
+
+			decals = [];
+
+		}
 
 		function removeAnnotations() {
 
@@ -414,14 +478,16 @@
 		}
 
 		function updateAnnotationOpacity() {
-			const meshDistance = camera.position.distanceTo(mesh.position);
-			const spriteDistance = camera.position.distanceTo(sprite.position);
-			spriteBehindObject = spriteDistance > meshDistance;
+					const meshDistance = camera.position.distanceTo(mesh.position);
+					const spriteDistance = camera.position.distanceTo(sprite.position);
+					spriteBehindObject = spriteDistance > meshDistance;
 
-			sprite.material.opacity = spriteBehindObject ? 0.25 : 1;
-			annotation.style.opacity = spriteBehindObject ? 0.25 : 1;
+					sprite.material.opacity = spriteBehindObject ? 0.5 : 1;
+
 		}
 
+
+		//keep annotation in place
 		function updateScreenPosition() {
 
 			var lastpos = annotations[annotations.length - 1];
