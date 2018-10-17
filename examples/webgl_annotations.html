@@ -328,7 +328,7 @@
 			loader.load( 'models/gltf/LeePerrySmith/LeePerrySmith.glb', function( gltf ) {
 
 				mesh = gltf.scene.children[ 0 ];
-				var material = new THREE.MeshPhongMaterial( {
+				mesh.material = new THREE.MeshPhongMaterial( {
 					specular: 0x111111,
 					map: textureLoader.load( 'models/gltf/LeePerrySmith/Map-COL.jpg' ),
 					specularMap: textureLoader.load( 'models/gltf/LeePerrySmith/Map-SPEC.jpg' ),
