@@ -66,8 +66,6 @@
 		var mesh, annotations, decals;
 		var raycaster;
 		var line;
-		var layers = { showAnnotations: true, showDecals: true };
-
 
 		var intersection = {
 			intersects: false,
@@ -124,6 +122,8 @@
 			Decal: false,
 			Hide: false,
 			Text: 'Test Annotation',
+			showAnnotations: true,
+			showDecals: true,
 			clear: function() {
 				removeAnnotations();
 				removeDecals();
@@ -320,8 +320,8 @@
 			gui.add( params, 'Annotate' );
 			gui.add( params, 'Decal')
 			gui.add( params, 'Text' );
-			gui.add( layers, 'showAnnotations' ).onChange( function () { camera.layers.toggle( 1 ); } );
-			gui.add( layers, 'showDecals' ).onChange( function () { camera.layers.toggle( 2 ); } );
+			gui.add( params, 'showAnnotations' ).onChange( function () { camera.layers.toggle( 1 ); } );
+			gui.add( params, 'showDecals' ).onChange( function () { camera.layers.toggle( 2 ); } );
 			gui.add( params, 'clear' );
 			gui.open();
 
