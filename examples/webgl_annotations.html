@@ -53,6 +53,7 @@
 
 		<div id="annotation">
 		    <p id="annotation-text"></p>
+				<p id="camera-distance"></p>
 		</div>
 		<canvas id="number" width="64" height="64"></canvas>
 
@@ -62,15 +63,23 @@
 		// set up variables
 		var container = document.getElementById( 'container' );
 
+
 		var renderer, scene, camera, stats;
-		var mesh, annotations, decals;
+		var mesh, annotations, decals, lines;
 		var raycaster;
 		var line;
+		var camDistance;
+
+		var mesh = void 0;
 
 		var intersection = {
 			intersects: false,
 			point: new THREE.Vector3(),
 			normal: new THREE.Vector3()
+		};
+		var annotationIntersection = {
+			intersects: false,
+			point: new THREE.Vector3()
 		};
 		var mouse = new THREE.Vector2();
 
@@ -92,25 +101,19 @@
 			polygonOffsetFactor: - 4,
 			wireframe: false
 		} );
-
 		var decals = [];
 
-		// Number definition
-		var canvas = document.getElementById("number");
-
-		var x = 32;
-		var y = 32;
-		var radius = 30;
-		var startAngle = 0;
-		var endAngle = Math.PI * 2;
+		//Sprite definition
 		var idx = 1;
-		var ctx = canvas.getContext("2d");
-
 		var sprite = void 0;
-		var mesh = void 0;
 		var annotation = document.querySelector(".annotation");
-
 		var annotations = [];
+
+		//surface line definition
+		var points = [];
+		var lines = [];
+
+		//raycast definition
 		var mouseHelper;
 		var position = new THREE.Vector3();
 		var orientation = new THREE.Euler();
@@ -119,15 +122,20 @@
 
 		var params = {
 			Annotate: true,
+			Points: false,
 			Decal: false,
 			Hide: false,
 			Text: 'Test Annotation',
 			showAnnotations: true,
 			showDecals: true,
+			showPoints: true,
+			showMesh: true,
+			createLine: function() { addLine(); },
 			clear: function() {
 				removeAnnotations();
 				removeDecals();
-			}
+			},
+			Play: true
 		};
 
 		window.addEventListener( 'load', init );
@@ -148,6 +156,7 @@
 			camera.layers.enable( 0 ); // enabled by default
 			camera.layers.enable( 1 );
 			camera.layers.enable( 2 );
+			camera.layers.enable( 3 );
 			camera.position.z = 120;
 			camera.target = new THREE.Vector3();
 
@@ -167,6 +176,7 @@
 			light.layers.enable( 0 );
 			light.layers.enable( 1 );
 			light.layers.enable( 2 );
+			light.layers.enable( 3 );
 			scene.add( light );
 
 			var light = new THREE.DirectionalLight( 0xccccff, 1 );
@@ -174,13 +184,15 @@
 			light.layers.enable( 0 );
 			light.layers.enable( 1 );
 			light.layers.enable( 2 );
+			light.layers.enable( 3 );
 			scene.add( light );
 
+
+			//normal line
 			var geometry = new THREE.BufferGeometry();
 			geometry.setFromPoints( [ new THREE.Vector3(), new THREE.Vector3() ] );
-
-			// line = new THREE.Line( geometry, new THREE.LineBasicMaterial( { linewidth: 4 } ) );
-			// scene.add( line );
+			line = new THREE.Line( geometry, new THREE.LineBasicMaterial( { linewidth: 4 } ) );
+			scene.add( line );
 
 			loadLeePerrySmith();
 
@@ -204,13 +216,12 @@
 			window.addEventListener( 'mousedown', function () {
 
 				moved = false;
-
 			}, false );
 
 			window.addEventListener( 'mouseup', function() {
 
 				checkMeshIntersection();
-				if ( ! moved && intersection.intersects ) { annotate(); shoot(); }
+				if ( ! moved && intersection.intersects ) { annotate(); shoot(); addPoint() };
 
 			} );
 
@@ -237,42 +248,32 @@
 				mouse.y = - ( y / window.innerHeight ) * 2 + 1;
 
 				checkMeshIntersection();
-				// checkAnnotationIntersection();
+				checkAnnotationIntersection();
 
 			}
 			//check for mouse/touch intersection with annotation number
 			function checkAnnotationIntersection() {
 
-				if (! annotations) return;
+				if ( !annotations || params.Annotate || params.Decal || params.Points ) return;
+
 				raycaster.setFromCamera( mouse, camera );
 
-				var intersectsA = raycaster.intersectObjects( [ annotations ] );
+				aLen = annotations.length;
 
-				if ( intersects.length > 0 ) {
+				for (i = 0; i < aLen; i++) {
+					var intersectsA = raycaster.intersectObjects( [ annotations[i] ] );
 
-					var p = intersectsA[ 0 ].point;
-					mouseHelper.position.copy( p );
-					intersection.point.copy( p );
+					if ( intersectsA.length > 0 ) {
 
-					var n = intersectsA[ 0 ].face.normal.clone();
-					n.transformDirection( mesh.matrixWorld );
-					n.multiplyScalar( 10 );
-					n.add( intersects[ 0 ].point );
+						annotationIntersection.point.copy( annotations[i].position );
+						annotationIntersection.intersects = true;
+						console.log(annotationIntersection.intersects);
 
-					intersection.normal.copy( intersectsA[ 0 ].face.normal );
-					mouseHelper.lookAt( n );
+					} else {
 
-					var positions = line.geometry.attributes.position;
-					positions.setXYZ( 0, p.x, p.y, p.z );
-					positions.setXYZ( 1, n.x, n.y, n.z );
-					positions.needsUpdate = true;
+						annotationIntersection.intersects = false;
 
-					intersection.intersects = true;
-
-				} else {
-
-					intersection.intersects = false;
-
+					}
 				}
 
 				}
@@ -280,7 +281,7 @@
 			function checkMeshIntersection() {
 
 				if ( ! mesh ) return;
-				if ( ! params.Annotate && ! params.Decal) return;
+				if ( ! params.Annotate && ! params.Decal && ! params.Points) return;
 
 				raycaster.setFromCamera( mouse, camera );
 
@@ -300,10 +301,11 @@
 					intersection.normal.copy( intersects[ 0 ].face.normal );
 					mouseHelper.lookAt( n );
 
-					// var positions = line.geometry.attributes.position;
-					// positions.setXYZ( 0, p.x, p.y, p.z );
-					// positions.setXYZ( 1, n.x, n.y, n.z );
-					// positions.needsUpdate = true;
+					//positions of normal line
+					var positions = line.geometry.attributes.position;
+					positions.setXYZ( 0, p.x, p.y, p.z );
+					positions.setXYZ( 1, n.x, n.y, n.z );
+					positions.needsUpdate = true;
 
 					intersection.intersects = true;
 
@@ -315,13 +317,36 @@
 
 			}
 
+			//check for mouse/touch intersection with decal
+		function checkDecalIntersection() {
+
+			raycaster.setFromCamera( mouse, camera );
+
+			var decalIntersects = raycaster.intersectObjects( [ Decals[0] ] );
+
+			if ( decalIntersects.length > 0 ) {
+
+				decalIntersection = true;
+
+			} else {
+
+				decalIntersection = false;
+
+			}
+
+		}
+
 			//gui list
 			var gui = new dat.GUI();
 			gui.add( params, 'Annotate' );
-			gui.add( params, 'Decal')
+			gui.add( params, 'Decal');
+			gui.add( params, 'Points');
 			gui.add( params, 'Text' );
 			gui.add( params, 'showAnnotations' ).onChange( function () { camera.layers.toggle( 1 ); } );
 			gui.add( params, 'showDecals' ).onChange( function () { camera.layers.toggle( 2 ); } );
+			gui.add( params, 'showLines' ).onChange( function () { camera.layers.toggle( 3 ); } );
+			gui.add( params, 'showMesh').onChange( function () { camera.layers.toggle( 0 ); });
+			gui.add( params, 'createLine');
 			gui.add( params, 'clear' );
 			gui.open();
 
@@ -357,11 +382,19 @@
 			if ( ! params.Annotate ) return;
 
 			// Sprite
+			var canvas = document.getElementById("number");
+			var x = 32;
+			var y = 32;
+			var radius = 30;
+			var startAngle = 0;
+			var endAngle = Math.PI*2;
+
 			var ctx = canvas.getContext("2d");
 	    var numberTexture = new THREE.CanvasTexture(document.querySelector("#number"));
+			var txt = document.getElementById("annotation-text").innerHTML;
 
 	    var spriteMaterial = new THREE.SpriteMaterial({
-	        map: numberTexture,
+	        map:numberTexture,
 	        alphaTest: 0.5,
 	        transparent: true,
 	        depthTest: false,
@@ -369,13 +402,16 @@
 					sizeAttenuation: false
 	    });
 
-	    sprite = new THREE.Sprite(spriteMaterial);
-	    sprite.scale.set(.03, .03, 1);
-			sprite.position.copy( intersection.point );
-			sprite.layers.set( 1 );
 
+			// get size data (height depends only on font size)
+			var metrics = ctx.measureText( txt );
+			var textWidth = metrics.width;
+			var borderThickness = 20;
+			var fontSize = 32;
+
+
+			//circle
 			ctx.clearRect(0,0,64,64)
-
 
 			ctx.fillStyle = "rgb(0, 0, 0)";
 			ctx.beginPath();
@@ -388,11 +424,18 @@
 			ctx.arc(x, y, radius, startAngle, endAngle);
 			ctx.stroke();
 
+			ctx.strokeStyle = "rgb(255, 255, 255)";
 			ctx.fillStyle = "rgb(255, 255, 255)";
-			ctx.font = "32px sans-serif";
+			ctx.font = fontSize + "px sans-serif";
 			ctx.textAlign = "center";
 			ctx.textBaseline = "middle";
+			// ctx.fillText(idx, x, y);
 			ctx.fillText(idx, x, y);
+
+			sprite = new THREE.Sprite(spriteMaterial);
+	    sprite.scale.set(.03, .03, 1);
+			sprite.position.copy( intersection.point );
+			sprite.layers.set( 1 );
 
 			annotations.push(sprite);
 	    scene.add(sprite);
@@ -407,9 +450,6 @@
 			position.copy( intersection.point );
 			orientation.copy( mouseHelper.rotation );
 
-			// if ( params.rotate ) orientation.z = Math.random() * 2 * Math.PI;
-			//
-			// var scale = params.minScale + Math.random() * ( params.maxScale - params.minScale );
 			size.set( 5, 5, 5 );
 
 			var material = decalMaterial.clone();
@@ -422,6 +462,37 @@
 			scene.add( m );
 
 		}
+
+		// Add Points for surface line
+		function addPoint() {
+			if ( ! params.Points ) return;
+
+			var p = new THREE.Points();
+
+			p.position.copy( intersection.point );
+			p.layers.set( 3 );
+
+			points.push( p );
+			scene.add( p );
+
+		}
+
+		// function addLine( points ) {
+		// 	var geometry = new THREE.Geometry();
+		//
+		// 	pLen = points.length;
+		//
+		// 	for (i = 0; i < pLen; i++) {
+		// 	    geometry.vertices.push( new THREE.Vector3( points[i.position.copy]));
+		// 	}
+		//
+		// 	var material = new THREE.LineBasicMaterial( { color: 0x0000ff, linewidth: 10 } );
+		//
+		// 	line = new THREE.Line( geometry, material );
+		// 	line.computeLineDistances();
+		// 	line.scale.set( 1, 1, 1 );
+		// 	scene.add( line );
+		// }
 
 		function removeDecals() {
 
@@ -459,39 +530,48 @@
 
 		function animate() {
 
+			if (!params.Play) return;
+
 			requestAnimationFrame( animate );
 
 			renderer.render( scene, camera );
 
 			stats.update();
 
-			annotations.forEach(updateAnnotationOpacity);
+			updateAnnotationOpacity();
 
 			updateAnnotationText();
 
-	 		// updateScreenPosition();
+	 		updateScreenPosition();
+
+			camDistance = camera.position.distanceTo(camera.target);
 
 		}
 
 		function updateAnnotationText() {
 			document.getElementById('annotation-text').innerHTML = params.Text;
+			document.getElementById('camera-distance').innerHTML = camDistance;
 		}
 
-		function updateAnnotationOpacity(annotations) {
+		function updateAnnotationOpacity() {
+			if ( ! annotations ) return;
 					const meshDistance = camera.position.distanceTo(mesh.position);
-					const spriteDistance = camera.position.distanceTo(sprite.position);
-					spriteBehindObject = spriteDistance > meshDistance;
 
-					sprite.material.opacity = spriteBehindObject ? 0.5 : 1;
+					aLen = annotations.length;
 
+					for (i = 0; i < aLen; i++) {
+						const spriteDistance = camera.position.distanceTo(annotations[i].position);
+						spriteBehindObject = spriteDistance > meshDistance;
+
+						annotations[i].material.opacity = spriteBehindObject ? 0.5 : 1;
+					}
 		}
 
 
 		//keep annotation text in place
 		function updateScreenPosition() {
-
-			var lastpos = annotations[annotations.length - 1];
-	    var vector = lastpos.position;
+			if ( ! annotationIntersection.intersects ) return;
+	    var vector = 	annotationIntersection.point
 	    var canvas = renderer.domElement;
 
 	    vector.project(camera);
