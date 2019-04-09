@@ -125,15 +125,18 @@
 			Points: false,
 			Decal: false,
 			Hide: false,
+
 			Text: 'Test Annotation',
 			showAnnotations: true,
 			showDecals: true,
 			showPoints: true,
 			showMesh: true,
-			createLine: function() { addLine(); },
+			showLines: true,
+			// createLine: function() { addLine(); },
 			clear: function() {
 				removeAnnotations();
 				removeDecals();
+				removeLines();
 			},
 			Play: true
 		};
@@ -346,7 +349,6 @@
 			gui.add( params, 'showDecals' ).onChange( function () { camera.layers.toggle( 2 ); } );
 			gui.add( params, 'showLines' ).onChange( function () { camera.layers.toggle( 3 ); } );
 			gui.add( params, 'showMesh').onChange( function () { camera.layers.toggle( 0 ); });
-			gui.add( params, 'createLine');
 			gui.add( params, 'clear' );
 			gui.open();
 
@@ -467,32 +469,75 @@
 		function addPoint() {
 			if ( ! params.Points ) return;
 
-			var p = new THREE.Points();
+			var pLoc = {
+				point: new THREE.Vector3(),
+				normal: new THREE.Vector3()
+			};
+			pLoc.point.copy(intersection.point)
+			pLoc.normal.copy(intersection.normal)
 
-			p.position.copy( intersection.point );
-			p.layers.set( 3 );
-
+			var p = new THREE.Vector3();
+			p.addVectors ( pLoc.point, pLoc.normal.multiplyScalar( .1 ) );
 			points.push( p );
-			scene.add( p );
+			if (points.length > 1) {
+				subPointDistance = 1;
+				v1 = points[points.length-2];
+				v2 =  points[points.length-1];
+				totalDistance = v1.distanceTo(v2);
+				subPointLength = Math.floor(totalDistance/subPointDistance)
+				var dir = new THREE.Vector3();
+				dir.subVectors( v2, v1 ).normalize();
+				subPoints =[]
+				startPos = v1
+				for (i = 0; i < subPointLength; i++) {
+					var subPoint = new THREE.Vector3();
+					subPoint.addVectors ( startPos, dir.multiplyScalar(subPointDistance) );
+					subPoints.push(subPoint);
+					startPos = subPoint
+				}
 
+				var geometry = new THREE.Geometry();
+				geometry.vertices.push(v1);
+
+				var pLen = subPoints.length;
+				var raycastPos= new THREE.Vector3()
+				raycastPos.copy(camera.position);
+
+				for (i = 0; i < pLen; i++) {
+
+					raycastDir = new THREE.Vector3()
+					raycastDir.subVectors( subPoints[i] , raycastPos ).normalize();
+
+
+					var lineRaycaster = new THREE.Raycaster(raycastPos, raycastDir);
+					var lineIntersects = lineRaycaster.intersectObject( mesh );
+
+					if ( lineIntersects.length > 0 ) {
+
+						var surfLoc = {
+							point: new THREE.Vector3(),
+							normal: new THREE.Vector3()
+						};
+						surfLoc.point.copy(lineIntersects[ 0 ].point)
+						surfLoc.normal.copy(lineIntersects[0].face.normal)
+
+						var linePoint = new THREE.Vector3();
+						linePoint.addVectors ( surfLoc.point, surfLoc.normal.multiplyScalar( .1 ) );
+				    geometry.vertices.push(linePoint);
+					}
+				}
+				geometry.vertices.push(v2);
+
+				var material = new THREE.LineBasicMaterial( { color: 0x0000ff, linewidth: 10 } );
+
+				var line = new THREE.Line( geometry, material );
+
+				line.scale.set( 1, 1, 1 );
+				line.layers.set(3);
+				lines.push(line)
+				scene.add( line );
+			}
 		}
-
-		// function addLine( points ) {
-		// 	var geometry = new THREE.Geometry();
-		//
-		// 	pLen = points.length;
-		//
-		// 	for (i = 0; i < pLen; i++) {
-		// 	    geometry.vertices.push( new THREE.Vector3( points[i.position.copy]));
-		// 	}
-		//
-		// 	var material = new THREE.LineBasicMaterial( { color: 0x0000ff, linewidth: 10 } );
-		//
-		// 	line = new THREE.Line( geometry, material );
-		// 	line.computeLineDistances();
-		// 	line.scale.set( 1, 1, 1 );
-		// 	scene.add( line );
-		// }
 
 		function removeDecals() {
 
@@ -516,6 +561,18 @@
 
 			annotations = [];
 			idx=1;
+
+		}
+		function removeLines() {
+
+			lines.forEach( function( d ) {
+
+				scene.remove( d );
+
+			} );
+
+			lines = [];
+			points = [];
 
 		}
 
